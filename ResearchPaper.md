@@ -1,4 +1,4 @@
-# ResearchPlan: Data-Driven Analysis of Climate Change Indicators
+# Research Paper: Data-Driven Analysis of Climate Change Indicators
 
 ---
 
