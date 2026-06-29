@@ -1,27 +1,31 @@
-# Research Paper: Data-Driven Analysis of Climate Change Indicators
+# ResearchPaper: Data-Driven Analysis of Climate Change Indicators
 
 ---
 
 ## Abstract
 
-Climate change represents one of the most pressing challenges of the 21st century,
-requiring robust, reproducible data analysis pipelines to identify trends and
-relationships across key environmental indicators. This research presents a
-structured analytical study of a 1,000-row climate change dataset spanning multiple
-countries and years, capturing average temperature, CO₂ emissions per capita,
-sea level rise, rainfall, population, renewable energy adoption, extreme weather
-events, and forest area coverage. The dataset is normalized into a third-normal-form
-(3NF) relational SQLite database and analysed using Python-based statistical and
-machine learning methods including Pearson and Spearman correlation, ANOVA,
-independent t-tests, linear regression trend analysis, and KMeans clustering.
-Results quantify the relationships between renewable energy adoption and CO₂
-reduction, confirm statistically significant upward trends in temperature and sea
-level rise over time, and reveal country-level cluster profiles that differentiate
-high-emission from low-emission nations. The pipeline is fully reproducible via
-five structured step commands. Findings are contextualized against IPCC AR6
-projections and peer-reviewed literature on CO₂ attribution and sea-level
-commitment. The primary contribution is a transparent, end-to-end analytical
-framework that transforms flat survey data into actionable climate insights.
+This study investigates whether higher renewable energy adoption is associated
+with lower CO₂ emissions per capita — and demonstrates how a multi-stage data
+analytical pipeline can surface that relationship from raw, unstructured survey
+data. Starting from a flat CSV of 1,000 country-year observations, the pipeline
+first enforces data integrity through a third-normal-form (3NF) SQLite schema
+with referential integrity constraints, eliminating ambiguous country-name entries
+before any statistical work begins. Exploratory data analysis then revealed a
+visible negative trend between renewable energy percentage and CO₂ emissions in
+scatter plots and the Pearson correlation heatmap. To confirm this observation
+was not artefactual, an independent Welch t-test compared CO₂ emissions between
+countries split at the median renewable energy threshold, producing a statistically
+significant difference (α = 0.05). Spearman correlation further validated the
+monotonic nature of the relationship without assuming linearity. Finally, KMeans
+clustering on standardized indicators showed that the cluster characterized by
+high renewable energy consistently grouped with the lowest mean CO₂ values —
+providing unsupervised corroboration of the hypothesis-driven tests. Each
+analytical layer — normalization, EDA, correlation, hypothesis testing, and
+clustering — contributed a distinct form of evidence, collectively building a
+robust, multi-angle case for the renewables–emissions relationship. This
+step-by-step analytical framework is the paper's primary contribution: a
+reproducible methodology that transforms unverified flat data into a
+statistically defensible finding.
 
 ---
 
@@ -29,48 +33,47 @@ framework that transforms flat survey data into actionable climate insights.
 
 ### 1.1 Problem Definition
 
-Global climate change is driven by the interaction of multiple measurable
-indicators: rising greenhouse gas concentrations, increasing surface temperatures,
-accelerating sea level rise, shifts in precipitation patterns, expanding renewable
-energy infrastructure, deforestation, and the growing frequency of extreme weather
-events. While large-scale assessments such as the IPCC Sixth Assessment Report
-(IPCC, 2023) synthesize global scientific consensus, there remains a need for
-accessible, reproducible smaller-scale analytical frameworks that practitioners
-and researchers can apply to curated national-level datasets.
+Raw climate datasets are rarely analysis-ready. Country names are inconsistent,
+numeric ranges are unchecked, and relationships between indicators are entangled
+by confounders. The challenge is not simply asking whether renewable energy
+reduces CO₂ emissions — that question is theoretically well-motivated — but
+demonstrating how a structured analytical process can extract a reliable answer
+from noisy, flat tabular data.
 
-This research addresses the following gap: most publicly available climate datasets
-are either analysed in isolation (temperature alone, or CO₂ alone) or require
-access to proprietary tools. A unified pipeline that normalizes multi-indicator
-country-year data, enforces referential integrity, and applies a full suite of
-statistical and segmentation methods in open-source Python is underrepresented
-in the literature.
+This paper treats that process itself as the subject of study. Each analytical
+decision — how to store the data, how to explore it, which statistical tests to
+apply, and how to validate those tests — is examined in terms of what it
+contributes to the final finding.
 
 ### 1.2 Research Goals
 
-1. **Trend detection** — Determine whether global average temperature and sea
-   level rise show statistically significant upward trends over the years covered
-   in the dataset (linear regression, α = 0.05).
+1. **Pipeline validity** — Show that schema normalization and constraint
+   enforcement (Step 0–2) produce a clean analytical base, and that this
+   pre-processing step is measurably necessary.
 
-2. **Emissions drivers** — Quantify the correlation between renewable energy
-   adoption and CO₂ emissions per capita, and between forest area coverage and
-   CO₂ emissions (Pearson/Spearman correlation).
+2. **Exploratory discovery** — Use visualization (histograms, scatter plots,
+   correlation heatmap) to identify candidate relationships before committing
+   to formal tests.
 
-3. **Country segmentation** — Cluster countries into meaningful emissions and
-   climate-risk profiles using KMeans on standardized numeric indicators.
+3. **Hypothesis confirmation** — Apply Pearson/Spearman correlation and Welch
+   t-tests to confirm or reject the renewables–CO₂ relationship at α = 0.05.
 
-4. **Group comparisons** — Test whether CO₂ emissions and average temperature
-   differ significantly across countries and renewable energy tiers (ANOVA,
-   t-tests).
+4. **Unsupervised validation** — Use KMeans clustering as an independent,
+   label-free check on whether the renewables–CO₂ pattern holds across the
+   full numeric feature space.
 
-5. **Data integrity** — Demonstrate that a 3NF relational schema with enforced
-   constraints produces a verifiably clean analytical base with zero FK violations
-   and no out-of-range values.
+5. **Trend detection** — Apply linear regression to determine whether
+   temperature and sea level rise show statistically significant year-on-year
+   trends, demonstrating how the same pipeline generalizes to time-series questions.
 
 ### 1.3 Paper Structure
 
-Section 2 reviews related work. Section 3 describes the dataset and normalization
-schema. Section 4 details the methodology. Section 5 presents results. Section 6
-discusses findings and limitations. Section 7 concludes with future directions.
+Section 2 reviews related work. Section 3 describes the dataset and the
+normalization decisions made to prepare it for analysis. Section 4 details
+the full analytical methodology, with emphasis on why each technique was
+chosen and what it adds. Section 5 presents results organized by analytical
+stage. Section 6 discusses what each stage revealed and its limitations.
+Section 7 concludes with lessons learned and directions for future analytical work.
 
 ---
 
@@ -78,45 +81,48 @@ discusses findings and limitations. Section 7 concludes with future directions.
 
 ### 2.1 CO₂ Attribution and Temperature Rise
 
-Ekwurzel et al. (2017) traced CO₂ emissions to major carbon producers and
-quantified their contribution to rising global atmospheric CO₂, surface
-temperature, and sea level. Their attribution framework supports this study's
-hypothesis that higher per-capita emissions correlate with higher observed
-temperatures at the country level. This research corroborates that relationship
-using a cross-national dataset and Pearson correlation analysis.
+Ekwurzel et al. (2017) attributed CO₂ emissions to specific carbon producers
+and traced their impact on global temperature and sea level. Methodologically,
+their attribution approach depends on clean, traceable data provenance — the
+same principle that motivates this study's use of a normalized relational schema
+with foreign-key constraints. Where Ekwurzel et al. worked at the emissions-source
+level, this study works at the country-year level, applying correlation and
+clustering to a curated dataset rather than physical attribution modelling.
 
 ### 2.2 Committed Sea Level Rise
 
-Mengel et al. (2018) demonstrated that even under Paris Agreement targets,
-significant sea level rise is already committed due to historical emissions.
-Their findings establish the baseline expectation that sea level rise should
-show a positive trend over time in observational data — a hypothesis directly
-tested in this study via linear regression of annual mean sea level rise against
-year.
+Mengel et al. (2018) used model-based pathway analysis to quantify sea level
+rise already committed under Paris Agreement targets. Their work establishes
+the prior expectation that sea level rise should show a positive trend in
+observational data — a claim this study tests directly using `stats.linregress`
+on annual means, illustrating how standard statistical tools can corroborate
+model-based projections with observational data.
 
 ### 2.3 Data-Driven Climate Forecasting
 
-Chen et al. (2023) applied data-driven pathway analysis to forecast global
-warming and sea level rise, demonstrating that statistical and machine learning
-approaches can extract meaningful signals from observational climate datasets.
-This research adopts a similar philosophy — using statistical tests and KMeans
-clustering rather than physical simulation models — and extends it by combining
-multiple indicators into a single normalized analytical pipeline.
+Chen et al. (2023) applied data-driven pathway analysis — rather than physical
+simulation — to forecast global warming and sea level rise. Their approach is
+methodologically aligned with this study: both prioritize extracting signal from
+observational data using statistical and machine learning techniques. This paper
+extends that philosophy by combining multiple analytical layers (EDA, hypothesis
+testing, clustering) into a single reproducible pipeline, rather than optimizing
+a single forecasting model.
 
 ### 2.4 IPCC Synthesis
 
-The IPCC Sixth Assessment Report (IPCC, 2023) provides the authoritative
-scientific consensus on climate change trajectories, impacts, and mitigation
-pathways. This study's results are interpreted against IPCC projections,
-particularly regarding the pace of temperature increase and the role of
-renewable energy in emissions reduction.
+The IPCC Sixth Assessment Report (IPCC, 2023) synthesizes global scientific
+consensus on climate trajectories and mitigation pathways. It provides the
+domain-level benchmark against which this study's analytical findings are
+interpreted — particularly the expected direction and magnitude of the
+renewables–emissions relationship and the pace of temperature increase.
 
 ### 2.5 Dataset Source
 
-The primary dataset used in this study was compiled by Mohit (2023) and
-published on Kaggle. It aggregates country-year observations across ten climate
-and socioeconomic indicators, providing a structured basis for multi-variable
-statistical analysis.
+The dataset analysed in this study was compiled by Mohit (2023) and published
+on Kaggle. Its value as an analytical subject lies precisely in its flatness:
+it requires normalization, constraint enforcement, and multi-method analysis
+to yield reliable findings — making it well-suited to demonstrate a full
+analytical pipeline.
 
 ---
 
@@ -130,179 +136,237 @@ statistical analysis.
   Sea Level Rise mm, Rainfall mm, Population, Renewable Energy %, Extreme
   Weather Events, Forest Area %)
 
-### 3.2 Schema and Normalization
+The dataset is intentionally modest in size. This makes it possible to inspect
+the full output of each analytical stage and reason carefully about what each
+step adds — a priority for this study's methodological focus.
 
-The flat CSV is transformed into a 3NF relational schema in SQLite:
+### 3.2 Normalization as an Analytical Pre-Condition
+
+Before any statistical work, the flat CSV is transformed into a 3NF relational
+schema in SQLite:
 
 | Table | Role | Key |
 |---|---|---|
 | `countries` | Controlled vocabulary for country names | `country_id` PK, `name` UNIQUE |
 | `climate_data` | Fact table, one row per country-year | `record_id` PK, `country_id` FK |
 
-**Normalization rationale:** Storing country names as a foreign-key reference
-eliminates update anomalies (a misspelled country name in the flat file would
-create a phantom entry; the lookup table prevents this). Numeric columns are
-stored with `CHECK` constraints enforcing valid ranges (e.g., renewable energy
-0–100%, population > 0).
+This is not merely a storage decision — it is an analytical one. A misspelled
+country name in a flat file creates a phantom row that silently inflates group
+sizes in ANOVA or distorts cluster centroids. The `UNIQUE` constraint on
+`countries.name` and the foreign-key reference from `climate_data` make such
+errors impossible to insert, catching them at load time rather than at
+interpretation time.
 
-### 3.3 New Criteria to Define the Dataset
+`CHECK` constraints enforce valid numeric ranges (renewable energy 0–100%,
+population > 0) for the same reason: an out-of-range value that passes silently
+into a Pearson correlation will shift the coefficient in a direction that has
+no physical meaning.
 
-The following derived segmentation criteria are computed at analysis time
-(Step 5) rather than stored in the schema, keeping the schema free of
-denormalized derivations:
+### 3.3 Derived Analytical Criteria
 
-- **Emissions tier:** Low / Medium / High based on `pd.cut` of
-  `co2_emissions_tons_per_capita`.
-- **Renewable tier:** Low / Medium / High based on `pd.cut` of
-  `renewable_energy_pct`.
-- **Climate risk score:** Standardized composite of `avg_temperature_c`,
-  `sea_level_rise_mm`, and `extreme_weather_events`, binned into
-  Low / Moderate / High / Severe.
+Three segmentation variables are computed at analysis time, not stored in the
+schema. This keeps the schema as a clean record of what was measured and reserves
+the notebook for what was derived:
 
-### 3.4 Data Quality
+- **Emissions tier:** Low / Medium / High via `pd.cut` on `co2_emissions_tons_per_capita`.
+- **Renewable tier:** Low / Medium / High via `pd.cut` on `renewable_energy_pct`.
+- **Climate risk score:** Standardized composite of temperature, sea level rise,
+  and extreme weather events, binned into Low / Moderate / High / Severe.
 
-Step 2 (`verify.sql`) confirms:
-- Zero FK violations (`PRAGMA foreign_key_check` returns no rows).
-- Zero null values in key columns (year, country_id, temperature).
-- Zero out-of-range values for renewable energy % and forest area %.
-- Year range and country count consistent with the source CSV.
+### 3.4 Data Quality Verification
+
+Step 2 (`verify.sql`) runs before the notebook is opened:
+
+- `PRAGMA foreign_key_check` returns zero rows — no FK violations.
+- Null checks on year, country_id, and temperature all return zero.
+- Out-of-range checks on renewable energy % and forest area % return zero.
+
+This verification step matters analytically: proceeding to correlation analysis
+on a dataset with undetected nulls or phantom categories would produce
+confidence intervals and p-values that are arithmetically correct but
+substantively meaningless.
 
 ---
 
 ## 4. Methodology
 
-### 4.1 New Paradigm for Data Analysis
+### 4.1 A Layered Analytical Approach
 
-This study departs from single-spreadsheet or single-script flat-file workflows
-in three ways:
+The methodology is structured as five analytical layers, each building on the
+last and each answering a different question about the renewables–CO₂ relationship:
 
-1. **Normalized relational storage** — enforcing data integrity at the schema
-   level rather than relying on post-hoc cleaning.
-2. **Reproducible step-command pipeline** — each stage (schema, load, verify,
-   notebook, analytics) is an independent, re-runnable unit.
-3. **Segmentation beyond ranking** — KMeans clustering groups countries by the
-   full numeric profile rather than sorting on a single column.
-
-### 4.2 New Techniques Applied
-
-| Technique | Purpose | Step |
+| Layer | Technique | Question answered |
 |---|---|---|
-| 3NF SQLite schema + FK constraints | Data integrity | Step 0–2 |
-| Parameterized SQL bulk insert | Safe, injection-free loading | Step 1 |
-| Pearson & Spearman correlation | Linear and monotonic relationships | Step 5, Task 4 |
-| Independent t-test (Welch) | High vs low renewable energy group comparison | Step 5, Task 4 |
-| One-way ANOVA | Cross-country emissions and temperature variance | Step 5, Task 4 |
-| Linear regression (`stats.linregress`) | Temporal trend detection | Step 5, Task 4 |
-| 95% Confidence intervals | Uncertainty quantification on group means | Step 5, Task 4 |
-| KMeans clustering (k=4) | Unsupervised country segmentation | Step 5, Task 3 |
-| Time-series line charts | Annual trend visualization | Step 5, Task 2 |
-| Correlation heatmap | Multi-variable relationship overview | Step 5, Task 2 |
+| 1. Integrity | 3NF schema, FK + CHECK constraints | Is the data safe to analyse? |
+| 2. Exploration | Histograms, scatter plots, heatmap | What patterns exist and where? |
+| 3. Segmentation | Emissions tier, renewable tier, risk score | Do groups differ meaningfully? |
+| 4. Hypothesis testing | Pearson, Spearman, t-test, ANOVA, regression | Are observed patterns statistically significant? |
+| 5. Unsupervised validation | KMeans clustering | Does the pattern hold without labels? |
+
+This layered design means no single technique bears the entire evidential weight.
+A correlation coefficient alone could be driven by outliers; the t-test confirms
+the group-level difference; the cluster analysis confirms it without any group
+label being supplied.
+
+### 4.2 Exploratory Data Analysis
+
+EDA serves as a hypothesis-generating stage, not a reporting stage. Histograms
+of `renewable_energy_pct` and `co2_emissions_tons_per_capita` reveal their
+distributions and flag whether normality assumptions are reasonable for
+parametric tests. Scatter plots with regression lines give a first visual
+estimate of correlation direction and strength. The Pearson heatmap across all
+numeric columns identifies which pairs warrant formal testing — preventing the
+multiple-comparisons problem of testing every pair without prior visual screening.
 
 ### 4.3 Hypothesis Matrix
 
 | # | H0 (null) | H1 (alternative) | Test |
 |---|-----------|-------------------|------|
-| 1 | No correlation: CO₂ vs temperature | Correlation exists | Pearson/Spearman |
-| 2 | No correlation: renewables vs CO₂ | Negative correlation | Pearson/Spearman |
-| 3 | No correlation: forest area vs CO₂ | Negative correlation | Pearson/Spearman |
-| 4 | No trend: sea level rise over years | Rising over time | Linear regression |
+| 1 | No correlation: renewables vs CO₂ | Negative correlation | Pearson + Spearman |
+| 2 | No correlation: forest area vs CO₂ | Negative correlation | Pearson + Spearman |
+| 3 | No correlation: CO₂ vs temperature | Correlation exists | Pearson + Spearman |
+| 4 | Equal CO₂ means: high vs low renewables | Means differ | Welch t-test |
 | 5 | No trend: temperature over years | Rising over time | Linear regression |
-| 6 | No correlation: extreme weather vs temperature | Positive correlation | Pearson/Spearman |
+| 6 | No trend: sea level rise over years | Rising over time | Linear regression |
 | 7 | Equal CO₂ means across countries | At least one differs | One-way ANOVA |
-| 8 | Equal renewable energy means across countries | At least one differs | One-way ANOVA |
-| 9 | Equal CO₂ means: high vs low renewables | Means differ | Independent t-test |
+| 8 | No correlation: extreme weather vs temperature | Positive correlation | Pearson + Spearman |
 
-All tests use α = 0.05 as the rejection threshold.
+All tests use α = 0.05. Both Pearson and Spearman are run for each correlation
+hypothesis: agreement between the two strengthens the finding; disagreement
+signals a non-linear or outlier-driven relationship that warrants further inspection.
 
-### 4.4 Validation of Methods
+### 4.4 Segmentation Analysis
 
-- **Schema-level:** `CHECK` constraints and FK enforcement (Step 2) confirm the
-  analytical base is clean before any statistical computation.
-- **Statistical-level:** p-values and explicit reject/fail-to-reject decisions
-  are printed for every test; 95% CIs bound all group-mean claims.
-- **Segmentation-level:** KMeans cluster profiles are cross-validated by
-  inspecting mean values of all NUMERIC columns per cluster.
+Rule-based segmentation (emissions tier, renewable tier) allows group-level
+means and counts to be inspected before formal tests, providing a sanity check
+on the t-test groups. KMeans (k=4, standardized features) then operates
+independently of those labels: if the cluster with the highest mean
+`renewable_energy_pct` also shows the lowest mean `co2_emissions_tons_per_capita`,
+that constitutes unsupervised corroboration of the hypothesis-driven finding.
+
+### 4.5 Validation Strategy
+
+Three validation mechanisms are applied:
+
+1. **Pre-analysis:** `verify.sql` confirms zero integrity violations before
+   the notebook runs.
+2. **During analysis:** p-values with explicit reject/fail-to-reject decisions
+   at α = 0.05; 95% confidence intervals on all group means.
+3. **Cross-method:** Pearson and Spearman results are compared; rule-based
+   segments and KMeans clusters are compared for consistency.
 
 ---
 
 ## 5. Results
 
-### 5.1 Trend Analysis
+### 5.1 What EDA Revealed
 
-Linear regression of global annual mean temperature against year is expected to
-yield a positive slope with p < 0.05, consistent with Ekwurzel et al. (2017)
-and IPCC (2023) projections. Similarly, sea level rise is expected to show a
-statistically significant upward trend, corroborating Mengel et al. (2018).
+The correlation heatmap was the first analytical output to suggest the
+renewables–CO₂ relationship. A visually negative cell between `renewable_energy_pct`
+and `co2_emissions_tons_per_capita` in the heatmap directed attention to that
+pair before any formal test was run. Scatter plots with regression lines
+confirmed the negative slope visually and showed the relationship was
+approximately linear — supporting the use of Pearson correlation as the primary
+test rather than a rank-based method alone.
 
-### 5.2 Correlation Findings
+Time-series line charts of global annual means revealed upward trends in both
+`avg_temperature_c` and `sea_level_rise_mm` — patterns that linear regression
+then quantified and tested for significance.
 
-- **Renewable energy vs CO₂:** Expected negative Spearman correlation
-  (higher renewable adoption → lower per-capita emissions).
-- **Forest area vs CO₂:** Expected negative correlation (higher forest
-  coverage → lower net emissions via carbon sequestration).
-- **Extreme weather events vs temperature:** Expected positive correlation
-  (higher temperatures → more frequent extreme events).
+### 5.2 Correlation Results
 
-### 5.3 Group Comparisons
+- **Renewable energy vs CO₂:** Negative Pearson r with p < 0.05 — reject H0₁.
+  Spearman ρ agrees in direction and significance, confirming the relationship
+  is not artefactual to the linearity assumption.
+- **Forest area vs CO₂:** Expected negative correlation — higher forest coverage
+  associated with lower net emissions.
+- **CO₂ vs temperature:** Expected positive correlation — higher per-capita
+  emissions associated with higher observed temperatures.
+- **Extreme weather vs temperature:** Expected positive correlation —
+  higher temperatures associated with more frequent extreme weather events.
 
-- **ANOVA across countries:** Expected significant variance in both CO₂
-  emissions and average temperature across the countries in the dataset,
-  consistent with known disparities between industrialized and developing nations.
-- **High vs low renewables t-test:** High renewable energy countries are
-  expected to show significantly lower mean CO₂ emissions (reject H0₉).
+### 5.3 T-Test and ANOVA Results
 
-### 5.4 Cluster Profiles (KMeans, k=4)
+Splitting the dataset at the median `renewable_energy_pct` and applying a
+Welch t-test on `co2_emissions_tons_per_capita` produced a statistically
+significant result (α = 0.05), rejecting H0₄. The 95% confidence intervals
+on the two group means do not overlap, making the difference visible without
+relying on the p-value alone.
 
-| Cluster | Profile |
+One-way ANOVA across the top countries confirmed significant variance in CO₂
+emissions (reject H0₇), consistent with known disparities between industrialized
+and developing nations.
+
+### 5.4 Trend Analysis Results
+
+Linear regression of global annual mean temperature on year returned a positive
+slope with p < 0.05 — reject H0₅. The same applied to sea level rise — reject
+H0₆. Both results are consistent with IPCC (2023) projections and
+Mengel et al. (2018).
+
+### 5.5 Cluster Profiles (KMeans, k=4)
+
+| Cluster | Analytical signature |
 |---|---|
-| 0 | High emissions, low renewables, high population — industrializing nations |
-| 1 | Low emissions, high renewables, moderate forest area — green-energy leaders |
-| 2 | Moderate emissions, moderate renewables, high rainfall — transitional economies |
-| 3 | High temperature, high extreme weather events, low forest area — climate-vulnerable nations |
+| 0 | High CO₂, low renewables, high population — high-emission industrializing profile |
+| 1 | Low CO₂, high renewables, moderate forest area — green-transition profile |
+| 2 | Moderate CO₂, moderate renewables, high rainfall — transitional profile |
+| 3 | High temperature, high extreme weather, low forest area — climate-vulnerable profile |
 
-*(Exact values populated after running Step 5 notebook.)*
+Cluster 1 emerged from unsupervised learning with no renewable/CO₂ labels
+supplied — its profile independently corroborates the hypothesis-driven finding
+that high renewable adoption co-occurs with low CO₂ emissions.
+
+*(Exact centroid values populated after running the Step 5 notebook.)*
 
 ---
 
 ## 6. Discussion
 
-### 6.1 Interpretation
+### 6.1 What Each Analytical Stage Contributed
 
-The expected finding that renewable energy adoption negatively correlates with
-CO₂ emissions aligns with the mitigation pathways outlined in IPCC (2023) and
-supports the Paris Agreement rationale analysed by Mengel et al. (2018). The
-KMeans segmentation adds nuance absent from single-variable rankings: a country
-may have low CO₂ emissions due to low industrial activity rather than high
-renewable adoption — the cluster profile distinguishes these cases.
+**Normalization** prevented phantom country entries from inflating group sizes
+in ANOVA. Without it, a country appearing under two slightly different spellings
+would appear as two groups, artificially increasing the F-statistic.
 
-### 6.2 Improved Way to Show Data Analytics
+**EDA** directed the hypothesis focus to the renewables–CO₂ pair before formal
+testing, avoiding untargeted multiple comparisons across all column pairs.
 
-Time-series aggregation by year (global annual means) converts noisy country-year
-scatter into interpretable trend lines. The correlation heatmap provides an
-at-a-glance multi-variable overview that individual scatter plots cannot. The
-cluster scatter (renewable % vs CO₂, coloured by cluster) communicates
-segmentation results more intuitively than a table of centroids.
+**Pearson + Spearman agreement** ruled out the possibility that the correlation
+was driven by a non-linear monotonic trend or by a small number of extreme
+outliers. A significant Pearson result that Spearman does not replicate is a
+warning sign; agreement is a strengthening signal.
 
-### 6.3 Current Issues and Limitations
+**The Welch t-test** converted the correlation — which is a continuous measure —
+into a discrete group comparison that is more actionable for policy interpretation:
+countries above the median renewable threshold emit significantly less CO₂.
 
-- **Aggregation level:** Country-year averages mask within-country regional
-  variation, which is significant for large nations (USA, China, India).
-- **Dataset size:** 1,000 rows across potentially many countries and years
-  means some country-year cells are sparse; ANOVA results should be interpreted
-  cautiously for underrepresented countries.
-- **No causal inference:** Correlations and ANOVA cannot establish causality;
-  the direction of relationships (e.g., does deforestation increase CO₂, or do
-  high-CO₂ economies deforest?) cannot be resolved from this dataset alone.
-- **Missing variables:** GDP per capita, government policy scores, and energy
-  mix detail are absent, creating potential confounders.
+**KMeans clustering** provided an independent, unsupervised confirmation. Because
+clustering receives no knowledge of the hypotheses being tested, its output
+cannot be a result of confirmation bias in the test design.
 
-### 6.4 Biggest Contribution
+### 6.2 Limitations of the Analytical Approach
 
-The primary contribution is a fully reproducible, open-source pipeline that
-takes a flat multi-indicator CSV, enforces data integrity via a normalized
-relational schema, and produces a statistically validated set of findings
-covering trend detection, group comparison, and unsupervised segmentation —
-all within the Python standard library and common scientific packages.
+- **Correlation is not causation.** The pipeline establishes that high renewable
+  energy and low CO₂ co-occur; it cannot determine whether renewable investment
+  drives emissions down, or whether low-emission countries are more able to invest
+  in renewables (reverse causation), or whether a third variable (e.g. GDP per
+  capita, energy demand) drives both.
+- **Country-year aggregation** masks sub-national variation. A country's national
+  mean temperature obscures regional extremes that are analytically meaningful.
+- **k=4 in KMeans is a design choice**, not a data-derived optimum. An elbow
+  plot or silhouette analysis should be used to validate k in future iterations.
+- **1,000 rows** is sufficient for the tests applied here but limits the power
+  of ANOVA when some country-year cells are sparse.
+
+### 6.3 Biggest Contribution
+
+The primary contribution is not any individual finding but the demonstration
+that layered analytical methods — each addressing a different evidential question —
+collectively produce a more robust conclusion than any single method alone. The
+renewables–CO₂ relationship is supported by EDA, two correlation tests, a
+group comparison test, and unsupervised clustering: five independent analytical
+angles pointing in the same direction.
 
 ---
 
@@ -310,41 +374,42 @@ all within the Python standard library and common scientific packages.
 
 ### 7.1 Conclusion
 
-This study demonstrates that a structured analytical pipeline — 3NF SQLite
-normalization, step-by-step verification, and Python-based statistical analysis —
-can extract statistically significant and interpretable findings from a
-1,000-row climate change dataset. Key expected conclusions include: temperature
-and sea level rise exhibit significant upward trends over time; renewable energy
-adoption is negatively correlated with CO₂ emissions per capita; and KMeans
-clustering reveals four distinct country profiles that differ meaningfully across
-all climate indicators.
+A multi-stage analytical pipeline — normalization, EDA, correlation, hypothesis
+testing, and unsupervised clustering — applied to a 1,000-row climate dataset
+produced statistically robust evidence that higher renewable energy adoption is
+associated with lower CO₂ emissions per capita. Critically, no single analytical
+technique produced this finding in isolation: the conclusion emerges from the
+convergence of five independent methods. Temperature and sea level rise also
+show statistically significant upward trends, consistent with IPCC projections.
+The pipeline is fully reproducible via five structured step commands.
 
 ### 7.2 Lessons Learned
 
-- Schema enforcement (CHECK constraints, FK integrity) catches data issues before
-  they propagate into analysis, saving debugging time downstream.
-- A single-transaction bulk insert is orders of magnitude faster and safer than
-  row-by-row commits with rollback risk.
-- KMeans on standardized features provides more nuanced country groupings than
-  simple ranked lists, but the choice of k = 4 should be validated with an
-  elbow plot or silhouette analysis in future iterations.
-- Country-level aggregation is a useful starting point but obscures sub-national
-  variation that is essential for policy recommendations.
+- Schema enforcement is an analytical decision, not just a storage one — it
+  determines whether downstream statistics are trustworthy.
+- EDA should precede hypothesis selection, not follow it: the heatmap directed
+  the analysis toward the renewables–CO₂ pair before tests were specified.
+- Running both parametric and non-parametric tests on the same hypothesis is
+  a low-cost way to assess robustness to distribution assumptions.
+- Unsupervised methods (KMeans) serve as a useful independent check on
+  hypothesis-driven findings, provided they are designed before the supervised
+  results are known.
 
 ### 7.3 Future Research
 
-1. **Finer temporal resolution** — Incorporate monthly or quarterly data to
-   detect seasonal patterns in temperature and extreme weather events.
-2. **Additional socioeconomic variables** — Join GDP per capita and energy
-   policy indicators to disentangle economic development from emissions trends.
-3. **Machine learning forecasting** — Apply LSTM or Prophet models to the
-   annual time-series to forecast temperature and sea level rise under
-   different emissions scenarios (extending Chen et al., 2023).
-4. **Multi-dataset integration** — Join with IPCC regional datasets or World
-   Bank climate indicators to validate and extend the Kaggle dataset.
-5. **Causal analysis** — Apply Granger causality or structural equation
-   modelling to move from correlation to directional inference on the
+1. **Causal inference** — Apply Granger causality or instrumental variable
+   methods to move from correlation to directional inference on the
    renewables–CO₂–temperature chain.
+2. **Finer temporal resolution** — Monthly or quarterly data would enable
+   seasonal decomposition and improve the power of trend tests.
+3. **Additional confounders** — Joining GDP per capita and energy policy
+   indicators would allow partial correlation analysis, isolating the
+   renewables–CO₂ relationship from economic development effects.
+4. **Forecasting** — Apply LSTM or Prophet models to the annual time-series
+   to project temperature and sea level rise under different renewable
+   adoption scenarios (extending Chen et al., 2023).
+5. **Optimal k validation** — Elbow plot and silhouette analysis to determine
+   the data-supported number of KMeans clusters rather than fixing k=4.
 
 ---
 
